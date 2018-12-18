@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+
+   <head>
+	   <title>K&S ChatRoom</title>
+	   <style>
+	   body{
+		   background-color:#e6f1ff;
+		   font-family: Arial, Helvetica, sans-serif;
+	   }
+	   </style>
+	  <!-- <link rel="stylesheet" type="text/css" href="style.css"> -->
+	  <link rel="stylesheet" href="mod6Style.css">
+      <script src="/socket.io/socket.io.js"></script>
+	  <!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script> -->
+	  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+	  <script>
+
+      var socketio = io.connect();
+	  var myUsername;
+	  var fullUser;
+	  // var fullUser = {username:"admin", roomIn:'lobby'};
+	  var partner;
+	  // socketio.on('connect', function(){
+	  // call the server-side function 'adduser' and send one parameter (value of prompt)
+	  socketio.emit('adduser', prompt("What's your username?"));
+	// socketio.emit('adduser', "my name is sami");
+	  // });
+	  socketio.on("alreadyTaken", function() {
+	 	socketio.emit('adduser', prompt("Already taken; please try another username."));
+	  });
+
+	  socketio.on("roomAlreadyExists", function() {
+	 	 window.alert('Room already Exists. Try Again');
+	  });
+
+
+
+	  // socketio.on("currentUsernames", function(data) {
+		//   console.log(data);
+		//   console.log(data.length);
+		//   for (i = 0; i < data.length; i++) {
+		//   	document.getElementById("usernamesInRoom").innerHTML = document.getElementById("usernamesInRoom").innerHTML + data[i] + "<br><br>";
+		// }
+	  // });
+	  socketio.on("updateUsers", function(data) {
+		//   console.log(data);
+		//   //document.getElementById("currentlyIn").innerHTML = "Currently In: " + data.name;
+		//   document.getElementById("usernamesInRoom").innerHTML = "All Users On Site: <br><br>"
+		//  for (i = 1; i < data.usersHereNow.length; i++) {
+		//    document.getElementById("usernamesInRoom").innerHTML = document.getElementById("usernamesInRoom").innerHTML +data.usersHereNow[i].username + "<br>";
+	   // }
+
+	   // console.log("DATA" + data);
+	   //document.getElementById("currentlyIn").innerHTML = "Currently In: " + data.name;
+	   document.getElementById("usernamesInRoom").innerHTML = "All Users On Site: <br><br>"
+	  for (i =0; i < data.length; i++) {
+		  console.log("DATA.users[i].username" + data[i].username);
+		document.getElementById("usernamesInRoom").innerHTML = document.getElementById("usernamesInRoom").innerHTML +data[i].username + ", " + data[i].roomIn + "<br>";
+	}
+
+
+	 });
+	 socketio.on("newRoom", function(data){
+	     document.getElementById("chatlog").innerHTML=' ';
+	     document.getElementById("currentlyIn").innerHTML = "Currently In: " + data.name;
+	 });
+
+	  socketio.on("currentRooms", function(data) {
+		 console.log(data);
+		 console.log(data.length);
+		 document.getElementById("listOfRooms").innerHTML = "Rooms:<br>";
+		 for (i = 0; i < data.length; i++) {
+			  var temp = data[i];
+		   document.getElementById("listOfRooms").innerHTML = document.getElementById("listOfRooms").innerHTML + "<button onclick =sendRoom(this) >"+data[i].name+"</button><br><br>";
+		   // document.getElementById(data[i].name).addEventListener('click', function(){
+			//    console.log("hey");
+		   // });
+	   }
+	 });
+
+	 socketio.on('updatedUser', function(data){
+	    fullUser = data;
+	    console.log(fullUser);
+	});
+
+	 function joinRoom(data){
+		// var id = event.name;
+		 console.log("joining "+data);
+		 console.log(data);
+		 document.getElementById("chatlog").innerHTML='     ';
+	   document.getElementById("currentlyIn").innerHTML = "Currently In: " + data;
+	 }
+
+	 socketio.on('joinRoomOnClient', function(data){
+	   joinRoom(data);
+	 });
+
+	 function sendRoom(event){
+	   oldRoomName = fullUser.roomIn;
+		 socketio.emit('joinRoom', {room:event.innerHTML, user:fullUser, old:oldRoomName});
+		 fullUser.roomIn = event.innerHTML;
+
+	 }
+
+
+	  socketio.on('usersInRoom', function(data){
+	    document.getElementById('actualUsersInRoom').innerHTML = 'Users in this Room: <br>';
+	    var users = JSON.stringify(data.users);
+	    users = JSON.parse(users);
+
+		var roomCreator = JSON.stringify(data.roomCreator);
+	    roomCreator = JSON.parse(roomCreator);
+
+
+	    for(i = 0; i < users.length; i++){
+	      if(users[i].roomIn==data.room){
+
+			console.log("fullUser: " + fullUser.username);
+			console.log("data.roomCreator: "+ data.roomCreator.username);
+			if(fullUser.username === data.roomCreator.username){
+				console.log("IN THE IF STATEMENT");
+				document.getElementById('actualUsersInRoom').innerHTML = document.getElementById('actualUsersInRoom').innerHTML + "<button onclick=privateChat(this) >"+users[i].username+"</button><button onclick='kickOut(this)'>Kick Out</button><br>";
+
+			}
+			else{
+				console.log("IN THE ELSE STATEMENT");
+				document.getElementById('actualUsersInRoom').innerHTML = document.getElementById('actualUsersInRoom').innerHTML + "<button onclick=privateChat(this) >"+users[i].username+"</button><br>";
+
+			}
+	      }
+	    }
+	  });
+
+
+	  	socketio.on("myUser", function(data) {
+			myUsername = data.username;
+			fullUser = data;
+			// console.log(data);
+		});
+		socketio.on("message_to_client",function(data) {
+		   //Append an HR thematic break and the escaped HTML of the new message
+		   document.getElementById("chatlog").appendChild(document.createElement("hr"));
+		   document.getElementById("chatlog").appendChild(document.createTextNode(data['name'] + ": "+ data['message']));
+		   document.getElementById("message_input").value=' ';
+		  //  var frm = document.getElementById('message_to_client');
+		  // frm.reset();
+		});
+
+		socketio.on("aPrivateMessage",function(data) {
+			console.log("data.from: "+data.from);
+			console.log("data.to: "+data.to);
+
+		   //Append an HR thematic break and the escaped HTML of the new message
+		   document.getElementById("privateChatlog").appendChild(document.createElement("hr"));
+		   document.getElementById("privateChatlog").appendChild(document.createTextNode(data.from+": "+ data.message));
+		   document.getElementById("privateMessage").value=' ';
+		   // var frm = document.getElementById('aPrivateMessage');
+		   // frm.reset();
+
+		});
+
+		function createNewRoom(){
+			var newRoomName = document.getElementById("newRoomName").value;
+	    	var newRoomPass=document.getElementById("newRoomPass").value;
+			//go to server, put the new room in the server, w the name of the new room and the creator (which u will get frmo a username session variable)
+			//then, from emit list of rooms again call. reupdate list of rooms on DOM.
+	    	socketio.emit('addRoom', newRoomName, newRoomPass, fullUser);
+		}
+
+		socketio.on("password?", function(data, roomPass) {
+			console.log('trying to join '+ data.room);
+	    	socketio.emit('joinRoom2', {data:data, answer:prompt("Room Password?"), roomPass:roomPass});
+	  	});
+  		socketio.on("wrongPass", function(data) {
+    		window.alert('Incorrect Password. Try Again');
+  		});
+
+
+      function sendMessage(){
+         var msg = document.getElementById("message_input").value;
+         socketio.emit("message_to_server", {username:myUsername, message:msg, user:fullUser});
+      }
+
+	  function sendPrivateMessage(){
+		  var msg = document.getElementById("privateMessage").value;
+	  	  socketio.emit("messageToPrivateServer", {user:fullUser, message:msg, partner:partner});
+	  }
+
+	  function privateChat(event){
+		  console.log("about to private chat with "+event.innerHTML);
+		  socketio.emit("startPrivateChat", {partner: event.innerHTML, me:fullUser});
+	  }
+
+
+
+	  function kickOut(event){
+		  // console.log("about to kick out"+event.innerHTML);
+		  // socketio.emit("kickUserOut", {person: event.innerHTML, me:fullUser});
+	  }
+
+
+	  socketio.on("openPrivateChat", function(data){
+		  partner=data;
+		  console.log("opening private chat div");
+		  document.getElementById("privateChat").innerHTML = "<br>Private Chatting With: " + data +
+		  "<input type='text' id='privateMessage'/> <button onclick='sendPrivateMessage()'>send</button> <div id='privateChatlog'></div><div id='privateChatlog'></div>";
+	  });
+
+
+	  socketio.on("userLeft", function(data){
+		   document.getElementById("chatlog").innerHTML =  document.getElementById("chatlog").innerHTML + "<hr><br>**" + data+ " left the room**<br>";
+	  });
+
+	  socketio.on("userJoined", function(data){
+		   document.getElementById("chatlog").innerHTML =  document.getElementById("chatlog").innerHTML + "<hr><br>**" + data+ " entered the room**<br>";
+	  });
+
+	  $(document).ready(function() {
+		  // console.log("im ready");
+
+		  $('#message_input').keypress(function (e) {
+			  // console.log("HEY IM IN MU FUNC");
+			  var key = e.which;
+			  if(key == 13) { // the enter key code
+				  // console.log("key == 13");
+			    // $('input[name = butAssignProd]').click();
+				sendMessage();
+			    // return false;
+			  }
+		  });
+
+		  $('#privateMessage').keypress(function (e) {
+			  console.log("HEY IM IN My FUNC");
+			  var key = e.which;
+			  if(key == 13) { // the enter key code
+				console.log("key == 13");
+				sendPrivateMessage();
+			  }
+		  });
+
+
+  	});
+
+      </script>
+   </head>
+   <body>
+
+	   <h1 style='text-align:center; border-style:double; padding:5px;'>Welcome to Our Chatroom!</h1>
+
+	   <div id='currentlyIn'>Currently in:<br></div>
+
+<div class="row">
+	<div class="column" style='float: left; width: 50%;'>
+		<input type="text" id="message_input"/>
+        <button onclick="sendMessage()">send</button>
+		<div id="chatlog"></div>
+	</div>
+	<br>
+	<hr>
+	<div class="column" style='float: left; width: 50%;'>
+		<div id='usernamesInRoom'>Users in this room:<br></div>
+	<hr>
+	<br>
+		<div id='listOfRooms'>Rooms:<br></div>
+	<hr>
+	<br>
+	  <div id='actualUsersInRoom'><br>Users in this room:<br></div>
+			<hr>
+		<p>CREATE A ROOM:</p>
+		Name:<input type="text" id="newRoomName"/>
+    Password:<input type="text" id="newRoomPass"/>(if no password, leave blank)
+		<button onclick="createNewRoom()">Create New Room</button>
+	</div>
+	<div id='privateChat'>
+		<!-- <div id='privateChatlog'></div> -->
+	</div>
+</div>
+
+   </body>
+</html>
